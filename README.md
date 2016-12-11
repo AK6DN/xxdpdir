@@ -201,3 +201,100 @@ HISTORY
       2016-11-01 v1.0 donorth - Initial version..
 
 ```
+
+Here is an example run of creating an RX02 bootable XXDP image file:
+
++ rm -f rx02.dsk
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins 'xxdp??.sys' --init
+Insert:     1:  XXDPSM.SYS   1-MAR-89    29 blocks start    55 end    83
+Insert:     2:  XXDPXM.SYS   1-MAR-89    39 blocks start    84 end   122
+Inserted 2 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins 'drs??.sys'
+Insert:     3:  DRSSM .SYS   1-MAR-89    24 blocks start   123 end   146
+Insert:     4:  DRSXM .SYS   1-MAR-89    48 blocks start   147 end   194
+Inserted 2 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins date.sys
+Insert:     5:  DATE  .SYS   1-MAR-89     2 blocks start   195 end   196
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins db.sys
+Insert:     6:  DB    .SYS   1-MAR-89     2 blocks start   197 end   198
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins dd.sys
+Insert:     7:  DD    .SYS   1-MAR-89     3 blocks start   199 end   201
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins dir.sys
+Insert:     8:  DIR   .SYS   1-MAR-89     7 blocks start   202 end   208
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins dl.sys
+Insert:     9:  DL    .SYS   1-MAR-89     4 blocks start   209 end   212
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins dm.sys
+Insert:    10:  DM    .SYS   1-MAR-89     4 blocks start   213 end   216
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins dr.sys
+Insert:    11:  DR    .SYS   1-MAR-89     3 blocks start   217 end   219
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins du.sys
+Insert:    12:  DU    .SYS   1-MAR-89     4 blocks start   220 end   223
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins dusz.sys
+Insert:    13:  DUSZ  .SYS   1-MAR-89     2 blocks start   224 end   225
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins dy.sys
+Insert:    14:  DY    .SYS   1-MAR-89     3 blocks start   226 end   228
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins 'l*.sys' --ins 'm*.sys'
+Insert:    15:  LP    .SYS   1-MAR-89     1 blocks start   229 end   229
+Insert:    16:  MM    .SYS   1-MAR-89     3 blocks start   230 end   232
+Insert:    17:  MS    .SYS   1-MAR-89     4 blocks start   233 end   236
+Insert:    18:  MU    .SYS   1-MAR-89     4 blocks start   237 end   240
+Inserted 4 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins '*.txt'
+Insert:    19:  HELP  .TXT   1-MAR-89    29 blocks start   241 end   269
+Inserted 1 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins '*.bic'
+Insert:    20:  PATCH .BIC   1-MAR-89    31 blocks start   270 end   300
+Insert:    21:  SETUP .BIC   1-MAR-89    27 blocks start   301 end   327
+Insert:    22:  UPDAT .BIC   1-MAR-89    29 blocks start   328 end   356
+Insert:    23:  XTECO .BIC   1-MAR-89    26 blocks start   357 end   382
+Inserted 4 files
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins '*.bin' --boot
+Insert:    24:  FLOAT .BIN   1-MAR-89    18 blocks start   383 end   400
+Inserted 1 files
+Boot and monitor blocks written from file(s): XXDPSM.SYS, DY.SYS
++ xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --dir
+DOS11 format, assume monitor starts at block 23
+Image supports 1001 blocks
+16 directory blocks, block 3 thru 18
+4 bitmap blocks, block 19 thru 22
+401 device blocks in use according to the bitmap
+
+ENTRY# FILNAM.EXT        DATE          LENGTH  START   VERSION
+
+    1  XXDPSM.SYS       1-MAR-89          29     55     E.0
+    2  XXDPXM.SYS       1-MAR-89          39     84     F.0
+    3  DRSSM .SYS       1-MAR-89          24    123     G.2
+    4  DRSXM .SYS       1-MAR-89          48    147     C.0
+    5  DATE  .SYS       1-MAR-89           2    195     B.0
+    6  DB    .SYS       1-MAR-89           2    197     C.0
+    7  DD    .SYS       1-MAR-89           3    199     D.0
+    8  DIR   .SYS       1-MAR-89           7    202     D.0
+    9  DL    .SYS       1-MAR-89           4    209     D.0
+   10  DM    .SYS       1-MAR-89           4    213     C.0
+   11  DR    .SYS       1-MAR-89           3    217     C.0
+   12  DU    .SYS       1-MAR-89           4    220     E.0
+   13  DUSZ  .SYS       1-MAR-89           2    224     C.0
+   14  DY    .SYS       1-MAR-89           3    226     D.0
+   15  LP    .SYS       1-MAR-89           1    229     B.0
+   16  MM    .SYS       1-MAR-89           3    230     C.0
+   17  MS    .SYS       1-MAR-89           4    233     C.0
+   18  MU    .SYS       1-MAR-89           4    237     E.0
+   19  HELP  .TXT       1-MAR-89          29    241
+   20  PATCH .BIC       1-MAR-89          31    270
+   21  SETUP .BIC       1-MAR-89          27    301
+   22  UPDAT .BIC       1-MAR-89          29    328
+   23  XTECO .BIC       1-MAR-89          26    357
+   24  FLOAT .BIN       1-MAR-89          18    383
+
+FREE BLOCKS:   600
+```
