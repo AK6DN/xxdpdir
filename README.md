@@ -204,6 +204,7 @@ HISTORY
 
 Here is an example run of creating an RX02 bootable XXDP image file:
 
+```
 + rm -f rx02.dsk
 + xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --ins 'xxdp??.sys' --init
 Insert:     1:  XXDPSM.SYS   1-MAR-89    29 blocks start    55 end    83
