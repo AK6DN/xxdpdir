@@ -265,7 +265,7 @@ Inserted 1 files
 Boot and monitor blocks written from file(s): XXDPSM.SYS, DY.SYS
 + xxdpdir.pl --verbose --image rx02.dsk --device RX02 --path tmp --dir
 DOS11 format, assume monitor starts at block 23
-Image supports 1001 blocks
+Image supports 988 blocks
 16 directory blocks, block 3 thru 18
 4 bitmap blocks, block 19 thru 22
 401 device blocks in use according to the bitmap
@@ -297,5 +297,5 @@ ENTRY# FILNAM.EXT        DATE          LENGTH  START   VERSION
    23  XTECO .BIC       1-MAR-89          26    357
    24  FLOAT .BIN       1-MAR-89          18    383
 
-FREE BLOCKS:   600
+FREE BLOCKS:   587
 ```
