@@ -30,7 +30,7 @@ BEGIN { unshift(@INC, $FindBin::Bin);
 my %db = ( # *** MFD1/MFD2 type, format 1 ***
 	   #
 	   TU58  => { BOOT => [0], MFD => [1,2], UFD => [3..6],   MAP => [7],        MON => [8..39],    SIZE => 512,   DRIVER => 'DD.SYS' },
-	   TU58X => { BOOT => [0], MFD => [1,2], UFD => [3..6],   MAP => [7],        MON => [8..38],    SIZE => 512,   DRIVER => 'DD.SYS' }, # legacy XXDPDIR uses smaller MON size, 31 vs 32
+	   TU58X => { BOOT => [0], MFD => [1,2], UFD => [3..6],   MAP => [7],        MON => [8..38],    SIZE => 512,   DRIVER => 'DD.SYS' }, # legacy XXDPDIR uses MON size 31 vs 32
 	   #
 	   RX01  => { BOOT => [0], MFD => [1,2], UFD => [3..6],   MAP => [7],        MON => [8..39],    SIZE => 494,   DRIVER => 'DX.SYS' },
 	   RX02  => { BOOT => [0], MFD => [1,2], UFD => [3..18],  MAP => [19..22],   MON => [23..54],   SIZE => 988,   DRIVER => 'DY.SYS' },
@@ -70,6 +70,13 @@ my %xl = ( # table of translations
 	   RM05 => 'RM03',
 	   RD54 => 'MSCP',
     );
+
+#----------------------------------------------------------------------------------------------------
+
+# RX01/RX02 words/sector, bytes/sector, and sectors/track
+
+my %rxdb = ( RX01 => { WPS =>  64, BPS => 128, SPT => 26 },
+             RX02 => { WPS => 128, BPS => 256, SPT => 26 } );
 
 #----------------------------------------------------------------------------------------------------
 
@@ -226,6 +233,8 @@ sub open {
 
     # get overall size of the image, in bytes
     $self->{bytes} = ($self->{disk}->stat)[7];
+    # for devices RX01/RX02, fix size by removing track 0 sectors from overall size count
+    $self->{bytes} -= $rxdb{$self->{device}}{SPT}*$rxdb{$self->{device}}{BPS} if $self->{device} eq 'RX01' || $self->{device} eq 'RX02';
 
     # read UFD blocks
     if ($self->ufdblk != 0) {
@@ -1566,23 +1575,21 @@ sub readblk {
 
 	# implement the DEC standard 2:1 interleave used on the RX series drive
 
-	my %xdb = ( RX01 => { WPS =>  64 },
-		    RX02 => { WPS => 128 } );
-
-	my $nwc = $xdb{$device}{WPS};				# number of words per sector
-	my $nbc = 2*$nwc;					# number of bytes per sector
+	my $spt = $rxdb{$device}{SPT};				# number of sectors per track
+	my $nwc = $rxdb{$device}{WPS};				# number of words per sector
+	my $nbc = $rxdb{$device}{BPS};				# number of bytes per sector
 	my $spb = int($self->{blklen} / $nwc);			# number of sectors per block
 
 	for (my $i = 0; $i < $spb; ++$i) {			# iterate over each sector per block
 
 	    my $lsn = $blknum * $spb + $i;			# logical sector number within block
-	    my $trk = int($lsn / 26);				# logical track number
-	    my $sec = $lsn % 26;				# logical sector number
-	    $sec = (2*$sec + ($sec >= 13 ? 1 : 0)) % 26;	# make 2:1 sector interleave
-	    $sec = 1 + ($sec + 6*$trk) % 26;			# and 6 sector track-track offset
+	    my $trk = int($lsn / $spt);				# logical track number
+	    my $sec = $lsn % $spt;				# logical sector number
+	    $sec = (2*$sec + (2*$sec >= $spt ? 1 : 0)) % $spt;	# make 2:1 sector interleave
+	    $sec = 1 + ($sec + 6*$trk) % $spt;			# and 6 sector track-track offset
 	    $trk = 1 + $trk;					# skip track zero
 
-	    my $pos = (26*$trk + ($sec-1))*$nbc;		# byte seek position of the block
+	    my $pos = ($spt*$trk + ($sec-1))*$nbc;		# byte seek position of the block
 	    my $buf = undef;					# read to here
 
 	    printf STDERR "readblk:  blknum=%-4d nbc=%d spb=%d lsn=%-4d i=%d trk=%-2d sec=%-2d pos=%d\n",
@@ -1650,23 +1657,21 @@ sub writeblk {
 
 	# implement the DEC standard 2:1 interleave used on the RX series drive
 
-	my %xdb = ( RX01 => { WPS =>  64 },
-		    RX02 => { WPS => 128 } );
-
-	my $nwc = $xdb{$device}{WPS};				# number of words per sector
-	my $nbc = 2*$nwc;					# number of bytes per sector
+	my $spt = $rxdb{$device}{SPT};				# number of sectors per track
+	my $nwc = $rxdb{$device}{WPS};				# number of words per sector
+	my $nbc = $rxdb{$device}{BPS};				# number of bytes per sector
 	my $spb = int($self->{blklen} / $nwc);			# number of sectors per block
 
 	for (my $i = 0; $i < $spb; ++$i) {			# iterate over each sector per block
 
 	    my $lsn = $blknum * $spb + $i;			# logical sector number within block
-	    my $trk = int($lsn / 26);				# logical track number
-	    my $sec = $lsn % 26;				# logical sector number
-	    $sec = (2*$sec + ($sec >= 13 ? 1 : 0)) % 26;	# make 2:1 sector interleave
-	    $sec = 1 + ($sec + 6*$trk) % 26;			# and 6 sector track-track offset
+	    my $trk = int($lsn / $spt);				# logical track number
+	    my $sec = $lsn % $spt;				# logical sector number
+	    $sec = (2*$sec + (2*$sec >= $spt ? 1 : 0)) % $spt;	# make 2:1 sector interleave
+	    $sec = 1 + ($sec + 6*$trk) % $spt;			# and 6 sector track-track offset
 	    $trk = 1 + $trk;					# skip track zero
 
-	    my $pos = (26*$trk + ($sec-1))*$nbc;		# byte seek position of the block
+	    my $pos = ($spt*$trk + ($sec-1))*$nbc;		# byte seek position of the block
 	    my $buf = pack(sprintf("v[%d]",$nwc), splice(@buf,0,$nwc));	# pack word array into the buffer
 
 	    printf STDERR "writeblk: blknum=%-4d nbc=%d spb=%d lsn=%-4d i=%d trk=%-2d sec=%-2d pos=%d\n",
