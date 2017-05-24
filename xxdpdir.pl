@@ -206,7 +206,8 @@ Don North - donorth <ak6dn _at_ mindspring _dot_ com>
 
 Modification history:
 
-  2016-11-01 v1.0 donorth - Initial version..
+  2016-11-01 v1.0 donorth - Initial version.
+  2017-05-24 v1.1 donorth - Updated RX free block calculation.
 
 =cut
 
@@ -227,7 +228,7 @@ BEGIN { unshift(@INC, $FindBin::Bin);
 use XXDP;
 
 # generic defaults
-my $VERSION = 'v1.0'; # version of code
+my $VERSION = 'v1.1'; # version of code
 my $HELP = 0; # set to 1 for man page output
 my $WARN = 0; # set to 1 for warning messages
 my $DEBUG = 0; # set to 1 for debug messages

@@ -24,7 +24,7 @@ The functionality is loosely modeled after the command line arguments of the leg
 If run with no options, it prints a usage screen:
 
 ```
-xxdpdir.pl v1.0 by Don North (perl 5.022)
+xxdpdir.pl v1.1 by Don North (perl 5.022)
 Usage: ./xxdpdir.pl [options...] arguments...
        --help                  output manpage and exit
        --warn                  enable warnings mode
@@ -198,7 +198,8 @@ AUTHOR
 HISTORY
     Modification history:
 
-      2016-11-01 v1.0 donorth - Initial version..
+      2016-11-01 v1.0 donorth - Initial version.
+      2017-05-24 v1.1 donorth - Updated RX free block calculation.
 
 ```
 
