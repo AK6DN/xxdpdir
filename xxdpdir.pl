@@ -208,6 +208,7 @@ Modification history:
 
   2016-11-01 v1.0 donorth - Initial version.
   2017-05-24 v1.1 donorth - Updated RX free block calculation.
+  2018-01-13 v1.2 donorth - Corrected MFD block position to use table.
 
 =cut
 
@@ -228,7 +229,7 @@ BEGIN { unshift(@INC, $FindBin::Bin);
 use XXDP;
 
 # generic defaults
-my $VERSION = 'v1.1'; # version of code
+my $VERSION = 'v1.2'; # version of code
 my $HELP = 0; # set to 1 for man page output
 my $WARN = 0; # set to 1 for warning messages
 my $DEBUG = 0; # set to 1 for debug messages

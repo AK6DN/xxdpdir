@@ -40,11 +40,11 @@ my %db = ( # *** MFD1/MFD2 type, format 1 ***
 	   #
 	   # *** MFD1/MFD2 type, format 2 ***
 	   #
-	 ##TU56  => { BOOT => [0], MFD => [100,101], UFD => [102..103], MAP => [104], MON => [30..61], INTERLEAVE => 5, SIZE => 576, DRIVER => 'DT.SYS' },
+	   TU56  => { BOOT => [0], MFD => [100,101], UFD => [102..103], MAP => [104], MON => [30..61], INTERLEAVE => 5, SIZE => 576, DRIVER => 'DT.SYS' },
 	   #
 	   # *** MFD1/MFD2 type, format 3 ***
 	   #
-	 ##RK05  => { BOOT => [0], MFD => [1,4794], UFD => [3..18], MAP => [4795..4799], MON => [30..61], INTERLEAVE => 5, SIZE => 4800, DRIVER => 'DK.SYS' },
+	 ##RK05  => { BOOT => [0], MFD => [1,4794], UFD => [3..18], MAP => [4795..4799], MON => [30..61], INTERLEAVE => 5, SIZE => 4800, DRIVER => 'DK.SYS' }, # documented block usage disagrees with available images
 	   #
 	   # *** MFD type, format 1 ***
 	   #
@@ -64,7 +64,7 @@ my %db = ( # *** MFD1/MFD2 type, format 1 ***
     );
 
 my %xl = ( # table of translations
-	   NONE => 'TU58',
+	   NONE => 'MSCP',
 	   RP05 => 'RP04', RP06 => 'RP04',
 	   RP03 => 'RP02',
 	   RM05 => 'RM03',
@@ -96,7 +96,7 @@ sub new {
     $self->{WARN} = 0; # no warnings enabled
     $self->{DEBUG} = 0; # no debug messages
     $self->{VERBOSE} = 0; # quiet message mode
-    $self->{VERSION} = '1.0'; # our code version
+    $self->{VERSION} = '1.2'; # our code version
 
     # global arguments
     $self->{WARN} = $arg{-warn} if exists $arg{-warn};
@@ -212,8 +212,12 @@ sub open {
     $self->{disk} = new FileHandle;
     return 1 unless sysopen($self->{disk}, $self->{image}, O_RDWR|O_BINARY);
 
+    # figure out device layout to use
+    my $device = exists($xl{$self->{device}}) ? $xl{$self->{device}} : $self->{device};
+
     # read the MFD block(s)
-    $self->{mfd1} = [1,0,[$self->readblk(1)]];			# MFD1 or MFD1/2 block
+    my $mfd1blk = $db{$device}{MFD}->[0];			# block number of MFD1 or MFD1/2 block
+    $self->{mfd1} = [$mfd1blk,0,[$self->readblk($mfd1blk)]];	# MFD1 or MFD1/2 block
     $self->{mfd2} = [$self->mfdnxt,0,[$self->readblk($self->mfdnxt)]] unless $self->mfdnxt == 0; # MFD2 block if present
 
     # debug print the MFD block(s)
@@ -234,7 +238,7 @@ sub open {
     # get overall size of the image, in bytes
     $self->{bytes} = ($self->{disk}->stat)[7];
     # for devices RX01/RX02, fix size by removing track 0 sectors from overall size count
-    $self->{bytes} -= $rxdb{$self->{device}}{SPT}*$rxdb{$self->{device}}{BPS} if $self->{device} eq 'RX01' || $self->{device} eq 'RX02';
+    $self->{bytes} -= $rxdb{$device}{SPT}*$rxdb{$device}{BPS} if $device eq 'RX01' || $device eq 'RX02';
 
     # read UFD blocks
     if ($self->ufdblk != 0) {
