@@ -40,7 +40,7 @@ my %db = ( # *** MFD1/MFD2 type, format 1 ***
 	   #
 	   # *** MFD1/MFD2 type, format 2 ***
 	   #
-	   TU56  => { BOOT => [0], MFD => [100,101], UFD => [102..103], MAP => [104], MON => [30..61], INTERLEAVE => 5, SIZE => 576, DRIVER => 'DT.SYS' },
+	   TU56  => { BOOT => [0], MFD => [64,65], UFD => [66..67], MAP => [68], MON => [1..63], INTERLEAVE => 4, SIZE => 576, DRIVER => 'DT.SYS' }, # guessing on MON position, document is illegible
 	   #
 	   # *** MFD1/MFD2 type, format 3 ***
 	   #
@@ -283,7 +283,7 @@ sub open {
 		warn "MAP ptr error" unless $map[3] == $self->mapblk;   # must point to first block
 		warn "MAP size error" unless $map[2] == $self->maplen;  # size must exact
 		warn "MAP count error" unless $map[1] == $self->mapnum; # must match index
-		next unless $map[3] == $self->mapblk && $map[2] == $self->maplen && $map[1] == $self->mapnum;
+		## next unless $map[3] == $self->mapblk && $map[2] == $self->maplen && $map[1] == $self->mapnum;
 	    }
 	    $self->{map}{$self->mapnum} = [$mapptr,0,[@map]];	# store MAP block
 	    $mapptr = $map[0];					# link to next MAP block
