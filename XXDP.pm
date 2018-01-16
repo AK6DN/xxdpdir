@@ -40,7 +40,7 @@ my %db = ( # *** MFD1/MFD2 type, format 1 ***
 	   #
 	   # *** MFD1/MFD2 type, format 2 ***
 	   #
-	   TU56  => { BOOT => [0], MFD => [64,65], UFD => [66..67], MAP => [68], MON => [1..63], INTERLEAVE => 4, SIZE => 576, DRIVER => 'DT.SYS' }, # guessing on MON position, document is illegible
+	   TU56  => { BOOT => [0], MFD => [64,65], UFD => [66..67], MAP => [68], MON => [1..32], INTERLEAVE => 5, SIZE => 576, DRIVER => 'DT.SYS' }, # guessing on MON position, document is illegible
 	   #
 	   # *** MFD1/MFD2 type, format 3 ***
 	   #
@@ -218,7 +218,24 @@ sub open {
     # read the MFD block(s)
     my $mfd1blk = $db{$device}{MFD}->[0];			# block number of MFD1 or MFD1/2 block
     $self->{mfd1} = [$mfd1blk,0,[$self->readblk($mfd1blk)]];	# MFD1 or MFD1/2 block
-    $self->{mfd2} = [$self->mfdnxt,0,[$self->readblk($self->mfdnxt)]] unless $self->mfdnxt == 0; # MFD2 block if present
+    $self->{mfd2} = [$self->mfdnxt,0,[$self->readblk($self->mfdnxt)]] if $self->mfdnxt > 0 && $self->mfdnxt < $db{$device}{SIZE}; # MFD2 block if present
+
+    # fake out the MFD blocks on a TU56 image that does not have valid data in the MFD1 block
+    if ($device eq 'TU56' && ($self->{mfd1}[2]->[0] <= 0 || $self->{mfd1}[2]->[0] >= $db{$device}{SIZE} ||
+			      $self->{mfd1}[2]->[2] <= 0 || $self->{mfd1}[2]->[2] >= $db{$device}{SIZE} ||
+			      $self->{mfd1}[2]->[3] <= 0 || $self->{mfd1}[2]->[3] >= $db{$device}{SIZE} )) {
+	# fake the MFD block(s)
+	printf STDERR "Generating virtual MFD1/MFD2 blocks\n" if $self->{DEBUG} >= 2;
+	# MFD1 block
+	my @map = @{$db{$device}{MAP}};
+	$self->{mfd1} = [$db{$device}{MFD}->[0], 0, [$db{$device}{MFD}->[1],
+						     $db{$device}{INTERLEAVE},
+						     $map[0],
+						     @map,
+						     (0) x (253-scalar(@map))]];
+	# MFD2 block
+	$self->{mfd2} = [0, 0, [0, 0401, $db{$device}{UFD}->[0], 9, (0) x 252]];
+    }
 
     # debug print the MFD block(s)
     if ($self->{DEBUG} >= 2) {
@@ -279,6 +296,13 @@ sub open {
 	until ($mapptr == 0) {					# done when link goes to zero
 	    my @map = $self->readblk($mapptr);			# read next MAP block from linked
 	    $self->mapnum($self->mapnum+1);			# count MAP blocks
+	    # fix MAP blocks on TU56 device image
+	    if ($device eq 'TU56') {
+		# zap extra unused map words above length value
+		foreach my $i ($map[2]..251) { $map[$i+4] = 0; }
+		# set length to standard value
+		$map[2] = $self->maplen;
+	    }
 	    if ($self->{WARN}) {
 		warn "MAP ptr error" unless $map[3] == $self->mapblk;   # must point to first block
 		warn "MAP size error" unless $map[2] == $self->maplen;  # size must exact
