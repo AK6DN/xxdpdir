@@ -250,7 +250,7 @@ sub open {
     }
 
     # sanity checks
-    die sprintf("MFD UFDlen error: %d <> %d", $self->ufdlen, 9) unless $self->ufdlen == 9; # must use 9. word dir entry
+    warn sprintf("MFD UFDlen error: %d <> %d", $self->ufdlen, 9) unless $self->ufdlen == 9; # must use 9. word dir entry
 
     # get overall size of the image, in bytes
     $self->{bytes} = ($self->{disk}->stat)[7];
@@ -501,7 +501,7 @@ sub directory {
     for (my $index = 1; $index <= $self->ufdentrynum; ++$index) {
 
 	# get elements of current UFD entry
-	my ($file1,$file2,$extn,$date,$logend,$start,$length,$last,$log52) = $self->ufdentry($index);
+	my ($file1,$file2,$extn,$date,$actend,$start,$length,$last,$act52) = $self->ufdentry($index);
 
 	# skip deleted file entries
 	next if $file1 == 0 && $file2 == 0 && $extn == 0;
@@ -550,14 +550,35 @@ sub directory {
 	# count blocks
 	$blocks += $length;
 
-	# check that all blocks in file are mapped as used
+	# check that all blocks in file are mapped as used, compare allocated length vs expected length
 	if ($self->{WARN}) {
-	    for (my $blk = $start; $blk != 0; ) {
-		my @data = $self->readblk($blk);
-		warn sprintf("Warning file %s.%s block %d is unmapped",&_strp($filename),&_strp($fileextn),$blk)
-		    unless $self->mapentry($blk) == 1;
-		$blk = $data[0];
+	    my $count = 0;
+	    if ($fileextn eq 'SAV') {
+		# contiguous file
+		for (my $blk = $start; $blk <= $last && $blk < $self->supnum; ++$blk) {
+		    my @data = $self->readblk($blk);
+		    warn sprintf("Warning file %s.%s block %06o is unmapped",
+				 &_strp($filename),&_strp($fileextn),$blk)
+			unless $self->mapentry($blk) == 1;
+		    $count += 1;
+		}
+	    } else {
+		# linked file
+		for (my $blk = $start; $blk != 0 && $blk < $self->supnum; ) {
+		    my @data = $self->readblk($blk);
+		    warn sprintf("Warning file %s.%s block %06o is unmapped",
+				 &_strp($filename),&_strp($fileextn),$blk)
+			unless $self->mapentry($blk) == 1;
+		    $count += 1;
+		    $blk = $data[0];
+		    warn sprintf("Warning file %s.%s link pointer %06o is invalid",
+				 &_strp($filename),&_strp($fileextn),$blk)
+			unless $blk < $self->supnum;
+		}
 	    }
+	    warn sprintf("Warning file %s.%s expected length %d. <> allocated length %d.",
+			 &_strp($filename),&_strp($fileextn),$length,$count)
+		unless $length == $count;
 	}
 
 	# print file contents if requested
@@ -565,17 +586,33 @@ sub directory {
 	    # dump file contents if requested
 	    printf STDERR "DUMP %6s.%3s  %9s %5d blocks start %5d end %5d\n",
 			   $filename,$fileextn,$realdate,$length,$start,$last;
-	    for (my $blk = $start, my $cnt = $length; $cnt > 0; --$cnt) {
-		my @data = $self->readblk($blk);
-		my $char;
-		for (my $i = 0; $i <= $#data; ++$i) {
-		    printf STDERR "%06o:", $blk if $i == 0;
-		    if ($i % 8 == 0 && $i > 0) { printf STDERR "       "; $char = ""; }
-		    printf STDERR " %06o", $data[$i];
-		    $char .= &_mapchr($data[$i]) . &_mapchr($data[$i]>>8);
-		    printf STDERR " %s\n", $char if $i % 8 == 7;
+	    if ($fileextn eq 'SAV') {
+		# contiguous file
+		for (my $blk = $start; $blk <= $last && $blk < $self->supnum; ++$blk) {
+		    my @data = $self->readblk($blk);
+		    my $char;
+		    for (my $i = 0; $i <= $#data; ++$i) {
+			printf STDERR "%06o:", $blk if $i == 0;
+			if ($i % 8 == 0 && $i > 0) { printf STDERR "       "; $char = ""; }
+			printf STDERR " %06o", $data[$i];
+			$char .= &_mapchr($data[$i]) . &_mapchr($data[$i]>>8);
+			printf STDERR " %s\n", $char if $i % 8 == 7;
+		    }
 		}
-		$blk = $data[0];
+	    } else {
+		# linked file
+		for (my $blk = $start; $blk != 0 && $blk < $self->supnum; ) {
+		    my @data = $self->readblk($blk);
+		    my $char;
+		    for (my $i = 0; $i <= $#data; ++$i) {
+			printf STDERR "%06o:", $blk if $i == 0;
+			if ($i % 8 == 0 && $i > 0) { printf STDERR "       "; $char = ""; }
+			printf STDERR " %06o", $data[$i];
+			$char .= &_mapchr($data[$i]) . &_mapchr($data[$i]>>8);
+			printf STDERR " %s\n", $char if $i % 8 == 7;
+		    }
+		    $blk = $data[0];
+		}
 	    }
 	}
 
@@ -624,7 +661,7 @@ sub extract {
     for (my $index = 1; $index <= $self->ufdentrynum; ++$index) {
 
 	# get elements of currrent UFD entry
-	my ($file1,$file2,$extn,$date,$logend,$start,$length,$last,$log52) = $self->ufdentry($index);
+	my ($file1,$file2,$extn,$date,$actend,$start,$length,$last,$act52) = $self->ufdentry($index);
 
 	# skip deleted file entries
 	next if $file1 == 0 && $file2 == 0 && $extn == 0;
@@ -658,7 +695,7 @@ sub extract {
 	    # core image file, contiguous data image with 256. words of data per block
 
 	    # loop over all blocks
-	    for (my $blk = $start; $blk <= $last; ++$blk) {
+	    for (my $blk = $start; $blk <= $last && $blk < $self->supnum; ++$blk) {
 		# read a block
 		my @tmp = $self->readblk($blk);
 		# pack words into buffer and write to file
@@ -670,7 +707,7 @@ sub extract {
 	    # linked block file, first word is link to next block, followed by 255. words of data
 
 	    # loop until next block goes to zero
-	    for (my $blk = $start; $blk != 0; ) {
+	    for (my $blk = $start; $blk != 0 && $blk < $self->supnum; ) {
 		# read a block
 		my @tmp = $self->readblk($blk);
 		# remove link to next block
@@ -804,7 +841,7 @@ sub insert {
 	# get next free UFD entry
 	my $index = $self->ufdfree();
 
-	# but die if no more left ... :-(
+	# if no more left ... :-(
 	return $result.sprintf("ERROR: no more free UFD entries; directory is full!\n") if $index == 0;
 
 	# current block used
@@ -895,7 +932,7 @@ sub delete {
     for (my $index = 1; $index <= $self->ufdentrynum; ++$index) {
 
 	# get elements of current UFD entry
-	my ($file1,$file2,$extn,$date,$logend,$start,$length,$last,$log52) = $self->ufdentry($index);
+	my ($file1,$file2,$extn,$date,$actend,$start,$length,$last,$act52) = $self->ufdentry($index);
 
 	# skip deleted file entries
 	next if $file1 == 0 && $file2 == 0 && $extn == 0;
@@ -1589,7 +1626,7 @@ sub default {
 #
 # return the block as an array of 16.bit words
 #
-# die with an error message on any read failure
+# warn with an error message on any read failure
 
 sub readblk {
 
@@ -1623,9 +1660,9 @@ sub readblk {
 	    printf STDERR "readblk:  blknum=%-4d nbc=%d spb=%d lsn=%-4d i=%d trk=%-2d sec=%-2d pos=%d\n",
 	                  $blknum, $nbc, $spb, $lsn, $i, $trk, $sec, $pos if $self->{DEBUG} >= 3;
 
-	    die sprintf("read seek error %d",$pos) unless sysseek($disk, $pos, 0) == $pos; # seek to desired block, die if error
+	    warn sprintf("read seek error %d",$pos) unless sysseek($disk, $pos, 0) == $pos; # seek to desired block
 	    my $cnt = sysread($disk, $buf, $nbc);		# do the read
-	    die sprintf("read data error %d <> %d",$cnt,$nbc) unless $cnt == $nbc; # die if can't read all we want
+	    warn sprintf("read data error %d <> %d",$cnt,$nbc) unless $cnt == $nbc; # warn if can't read all we want
 	    push(@buf, unpack(sprintf("v[%d]",$nwc), $buf));	# unpack into a word array
 
 	}
@@ -1639,9 +1676,9 @@ sub readblk {
 	my $pos = $blknum*$nbc;					# byte seek position of the block
 	my $buf = undef;					# read to here
 
-	die sprintf("read seek error %d",$pos) unless sysseek($disk, $pos, 0) == $pos; # seek to desired block, die if error
+	warn sprintf("read seek error %d",$pos) unless sysseek($disk, $pos, 0) == $pos; # seek to desired block
 	my $cnt = sysread($disk, $buf, $nbc);			# do the read
-	die sprintf("read data error %d <> %d",$cnt,$nbc) unless $cnt == $nbc; # die if can't read all we want
+	warn sprintf("read data error %d <> %d",$cnt,$nbc) unless $cnt == $nbc; # warn if can't read all we want
 	push(@buf, unpack(sprintf("v[%d]",$nwc), $buf));	# unpack into a word array
 
     }
@@ -1666,7 +1703,7 @@ sub readblk {
 #
 # returns nothing
 #
-# die with an error message on any write failure
+# warn with an error message on any write failure
 
 sub writeblk {
 
@@ -1678,7 +1715,7 @@ sub writeblk {
 
     while (scalar(@buf) < $self->{blklen}) { push(@buf, 0); }	# zero extend to block length
 
-    die sprintf("write length error: %d <> %d",scalar(@buf),$self->{blklen})
+    warn sprintf("write length error: %d <> %d",scalar(@buf),$self->{blklen})
 	unless scalar(@buf) == $self->{blklen}; # must be exactly one block worth of data
 
     if ($device eq 'RX01' || $device eq 'RX02') {
@@ -1705,9 +1742,9 @@ sub writeblk {
 	    printf STDERR "writeblk: blknum=%-4d nbc=%d spb=%d lsn=%-4d i=%d trk=%-2d sec=%-2d pos=%d\n",
 	                  $blknum, $nbc, $spb, $lsn, $i, $trk, $sec, $pos if $self->{DEBUG} >= 3;
 
-	    die sprintf("write seek error %d",$pos) unless sysseek($disk, $pos, 0) == $pos; # seek to desired block, die if error
+	    warn sprintf("write seek error %d",$pos) unless sysseek($disk, $pos, 0) == $pos; # seek to desired block
 	    my $cnt = syswrite($disk, $buf);			# do the write
-	    die sprintf("write data error %d <> %d",$cnt,$nbc) unless $cnt == $nbc; # die if can't write all we want
+	    warn sprintf("write data error %d <> %d",$cnt,$nbc) unless $cnt == $nbc; # warn if can't write all we want
 
 	}
 
@@ -1720,9 +1757,9 @@ sub writeblk {
 	my $pos = $blknum*$nbc;					# byte seek position of the block
 	my $buf = pack(sprintf("v[%d]",$nwc), @buf);		# pack word array into the buffer
 
-	die sprintf("write seek error %d",$pos) unless sysseek($disk, $pos, 0) == $pos; # seek to desired block, die if error
+	warn sprintf("write seek error %d",$pos) unless sysseek($disk, $pos, 0) == $pos; # seek to desired block
 	my $cnt = syswrite($disk, $buf);			# do the write
-	die sprintf("write data error %d <> %d",$cnt,$nbc) unless $cnt == $nbc; # die if can't write all we want
+	warn sprintf("write data error %d <> %d",$cnt,$nbc) unless $cnt == $nbc; # warn if can't write all we want
 
     }
 
