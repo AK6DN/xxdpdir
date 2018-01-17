@@ -40,7 +40,7 @@ my %db = ( # *** MFD1/MFD2 type, format 1 ***
 	   #
 	   # *** MFD1/MFD2 type, format 2 ***
 	   #
-	   TU56  => { BOOT => [0], MFD => [64,65], UFD => [66..67], MAP => [68], MON => [1..32], INTERLEAVE => 5, SIZE => 576, DRIVER => 'DT.SYS' }, # guessing on MON position, document is illegible
+	   TU56  => { BOOT => [0], MFD => [64,65], UFD => [66..67], MAP => [68], MON => [24..39], INTERLEAVE => 5, SIZE => 576, DRIVER => 'DT.SYS' }, # 578 physical, XXDP only uses 576
 	   #
 	   # *** MFD1/MFD2 type, format 3 ***
 	   #
